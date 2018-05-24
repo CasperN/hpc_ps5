@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <mpi.h>
 #include <math.h>
 #include <assert.h>
+#include <cuda.h>
 
 #define CENTER (vec_t) {0, 12, 0}
 #define LIGHT (vec_t) {4, 4, -1}

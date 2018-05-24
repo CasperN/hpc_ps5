@@ -1,5 +1,5 @@
-CC = mpicc -fopenmp -std=c99 -cc=/opt/local/bin/gcc-mp-7 -O3 -lm -Wall
-
+# CC = gcc -std=c99 -cc=/opt/local/bin/gcc-mp-7 -O3 -lm -Wall
+CC = gcc -O2 -lm -Wall -std=c99
 
 info :
 	@ echo "Usage:"

@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <mpi.h>
+// #include <mpi.h>
 #include <math.h>
 #include <assert.h>
 
@@ -64,7 +64,7 @@ void destroy_window(window_t *w){
 }
 
 int on_surface(window_t *w, vec_t co_ord) {
-    return (abs(co_ord.x) < w->max) && (abs(co_ord.z) < w->max);
+    return (fabs(co_ord.x) < w->max) && (fabs(co_ord.z) < w->max);
 }
 
 void save_surface(window_t *w,  char *file_name){
@@ -103,10 +103,7 @@ void serial_ray_tracing(window_t* window, vec_t center, vec_t light, double radi
 
         } while(x < 0);
 
-        // `t` has to be initialized to exit the loop as `x` is initialized to be negative
-        #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
         ray_sphere = add(t - sqrt(x), ray, 0, Z_Vec);
-        #pragma GCC diagnostic pop
 
         sph_dir = direction(ray_sphere, center);
         light_dir = direction(light, ray_sphere);
