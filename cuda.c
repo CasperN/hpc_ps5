@@ -14,12 +14,19 @@ typedef struct { double x,y,z; } vec_t;
 
 __device__ vec_t Z_Vec = (vec_t) {0,0,0};
 
-__device__ vec_t add(double a, vec_t v, double b, vec_t w){
+__device__ vec_t add(vec_t v, vec_t w){
     vec_t res;
-    res.x = a * v.x + b * w.x;
-    res.y = a * v.y + b * w.y;
-    res.z = a * v.z + b * w.z;
+    res.x = v.x + w.x;
+    res.y = v.y + w.y;
+    res.z = v.z + w.z;
     return res;
+}
+
+__device__ vec_t scale(double c, vec_t v){
+    v.x *= c;
+    v.y *= c;
+    v.z *= c;
+    return v;
 }
 
 
@@ -28,9 +35,9 @@ __device__ double dot(vec_t u, vec_t v){
 }
 
 __device__ vec_t direction(vec_t end, vec_t start){
-    vec_t dir = add(1, end, -1, start);
+    vec_t dir = add(end, scale(-1, start));
     double norm = sqrt(dot(dir, dir));
-    return add(1/norm, dir, 0, Z_Vec);
+    return scale(1/norm, dir);
 }
 
 __device__ vec_t sample_direction(){
@@ -47,9 +54,10 @@ __device__ vec_t sample_direction(){
 }
 
 
-// Windows are always parallel to y axis since the viewer is assumed to be
-// at the origin facing in y direction
-typedef struct { double **surface, max, y; int size; } window_t;
+typedef struct {
+    double *surface, max, y;    // Windows are always parallel to y axis since
+    int size;                   // the viewer is assumed to be at the origin
+} window_t;                     // facing in y direction
 
 
 void init_window(window_t *w, int size, double y_coordinate, double w_max){
@@ -94,20 +102,17 @@ __global__ void trace_ray(window_t window, double* surface, vec_t center, vec_t 
     center_sq = dot(center, center);
 
     do{
-        ray = sample_direction();                           // Ray originates from the origin
-        ray_window = add(window->y / ray.y, ray, 0, Z_Vec); // Ray's intersection with window
+        ray = sample_direction();                   // Ray originates from the origin
+        ray_window = scale(window->y / ray.y, ray); // Ray's intersection with window
 
         if(!on_surface(&window, ray_window)) continue;
 
-        t = dot(ray, center);                   // t and x are algebra steps needed
-        x = t * t + radius_sq - center_sq;      // to solve for ray-sphere intersection
+        t = dot(ray, center);                       // t and x are algebra steps needed
+        x = t * t + radius_sq - center_sq;          // to solve for ray-sphere intersection
 
     } while(x < 0);
 
-    // `t` has to be initialized to exit the loop as `x` is initialized to be negative
-    #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-    ray_sphere = add(t - sqrt(x), ray, 0, Z_Vec);
-    #pragma GCC diagnostic pop
+    ray_sphere = scale(t - sqrt(x), ray);
 
     sph_dir = direction(ray_sphere, center);
     light_dir = direction(light, ray_sphere);

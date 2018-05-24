@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-// #include <mpi.h>
 #include <math.h>
 #include <assert.h>
 
@@ -12,25 +11,29 @@
 
 typedef struct { double x,y,z; } vec_t;
 
-vec_t Z_Vec = (vec_t) {0,0,0};
-
-vec_t add(double a, vec_t v, double b, vec_t w){
+vec_t add(vec_t v, vec_t w){
     vec_t res;
-    res.x = a * v.x + b * w.x;
-    res.y = a * v.y + b * w.y;
-    res.z = a * v.z + b * w.z;
+    res.x = v.x + w.x;
+    res.y = v.y + w.y;
+    res.z = v.z + w.z;
     return res;
 }
 
+vec_t scale(double c, vec_t v){
+    v.x *= c;
+    v.y *= c;
+    v.z *= c;
+    return v;
+}
 
 double dot(vec_t u, vec_t v){
     return (u.x * v.x) + (u.y * v.y) + (u.z * v.z);
 }
 
 vec_t direction(vec_t end, vec_t start){
-    vec_t dir = add(1, end, -1, start);
+    vec_t dir = add(end, scale(-1, start));
     double norm = sqrt(dot(dir, dir));
-    return add(1/norm, dir, 0, Z_Vec);
+    return scale(1/norm, dir);
 }
 
 vec_t sample_direction(){
@@ -47,9 +50,10 @@ vec_t sample_direction(){
 }
 
 
-// Windows are always parallel to y axis since the viewer is assumed to be
-// at the origin facing in y direction
-typedef struct { double *surface, max, y; int size; } window_t;
+typedef struct {
+    double *surface, max, y;    // Windows are always parallel to y axis since
+    int size;                   // the viewer is assumed to be at the origin
+} window_t;                     // facing in y direction
 
 void init_window(window_t *w, int size, double y_coordinate, double w_max){
     w->y = y_coordinate;
@@ -94,7 +98,7 @@ void serial_ray_tracing(window_t* window, vec_t center, vec_t light, double radi
 
         do{
             ray = sample_direction();                     // Ray originates from the origin
-            ray_window = add(window->y / ray.y, ray, 0, Z_Vec); // Ray's intersection with window
+            ray_window = scale(window->y / ray.y, ray); // Ray's intersection with window
 
             if(!on_surface(window, ray_window)) continue;
 
@@ -103,7 +107,7 @@ void serial_ray_tracing(window_t* window, vec_t center, vec_t light, double radi
 
         } while(x < 0);
 
-        ray_sphere = add(t - sqrt(x), ray, 0, Z_Vec);
+        ray_sphere = scale(t - sqrt(x), ray);
 
         sph_dir = direction(ray_sphere, center);
         light_dir = direction(light, ray_sphere);
