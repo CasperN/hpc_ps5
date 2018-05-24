@@ -49,22 +49,17 @@ vec_t sample_direction(){
 
 // Windows are always parallel to y axis since the viewer is assumed to be
 // at the origin facing in y direction
-typedef struct { double **surface, max, y; int size; } window_t;
+typedef struct { double *surface, max, y; int size; } window_t;
 
 void init_window(window_t *w, int size, double y_coordinate, double w_max){
     w->y = y_coordinate;
     w->max = w_max;
     w->size = size;
-    w->surface = malloc(size * sizeof(double*));
-    w->surface[0] = calloc(size * size, sizeof(double));
+    w->surface = calloc(size * size, sizeof(double));
     assert(w->surface);
-    assert(w->surface[0]);
-    for(int i=0; i<size; i++)
-        w->surface[i] = w->surface[0] + i * size;
 }
 
 void destroy_window(window_t *w){
-    free(w->surface[0]);
     free(w->surface);
 }
 
@@ -74,7 +69,7 @@ int on_surface(window_t *w, vec_t co_ord) {
 
 void save_surface(window_t *w,  char *file_name){
     FILE *f = fopen(file_name,"w");
-    fwrite(w->surface[0], sizeof(double), w->size * w->size, f);
+    fwrite(w->surface, sizeof(double), w->size * w->size, f);
     fclose(f);
 }
 
@@ -82,7 +77,7 @@ void add_brightness(window_t *w, vec_t co_ord, double b){
     int x,y;
     x = (co_ord.x + w->max) / 2 / w->max * w->size;
     y = (co_ord.z + w->max) / 2 / w->max * w->size;
-    w->surface[x][y] += b;
+    w->surface[x * w->size + y] += b;
 }
 
 // Ray tracing simulation of a sphere at coordinates `center` and radius `radius`.
@@ -98,7 +93,7 @@ void serial_ray_tracing(window_t* window, vec_t center, vec_t light, double radi
         double brightness, t, x = -1;
 
         do{
-            ray = sample_direction();                           // Ray originates from the origin
+            ray = sample_direction();                     // Ray originates from the origin
             ray_window = add(window->y / ray.y, ray, 0, Z_Vec); // Ray's intersection with window
 
             if(!on_surface(window, ray_window)) continue;
