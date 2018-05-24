@@ -137,7 +137,7 @@ void gpu_ray_tracing(window_t* window, vec_t center, vec_t light, double radius,
     // Launch ray tracing
     trace_ray<<<nblocks, th_per_bl>>>(window, d_surface, center, light, radius);
     // Collect surface
-    window->surface = malloc(surface_size);
+    window->surface = (double*) malloc(surface_size);
     cudaMemcpy(&window->surface, d_surface, surface_size, cudaMemcpyDeviceToHost);
     cudaFree(d_surface);
 }
@@ -160,7 +160,7 @@ int main(int argc, char const *argv[]) {
 
     gpu_ray_tracing(&w, CENTER, LIGHT, RADIUS, n_rays);
 
-    save_surface(&w, "result.bin");
+    save_surface(&w, (const char *)"result.bin");
     destroy_window(&w);
 
     return 0;
