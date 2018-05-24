@@ -2,7 +2,8 @@
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
-#include <cuda.h>
+#include<cuda.h>
+#include<cuda_runtime.h>
 
 #define CENTER (vec_t) {0, 12, 0}
 #define LIGHT (vec_t) {4, 4, -1}
@@ -11,8 +12,6 @@
 #define WINDOW_MAX 10
 
 typedef struct { double x,y,z; } vec_t;
-
-__device__ vec_t Z_Vec = (vec_t) {0,0,0};
 
 __device__ vec_t add(vec_t v, vec_t w){
     vec_t res;
@@ -103,7 +102,7 @@ __global__ void trace_ray(window_t window, double* surface, vec_t center, vec_t 
 
     do{
         ray = sample_direction();                   // Ray originates from the origin
-        ray_window = scale(window->y / ray.y, ray); // Ray's intersection with window
+        ray_window = scale(window.y / ray.y, ray); // Ray's intersection with window
 
         if(!on_surface(&window, ray_window)) continue;
 
@@ -130,10 +129,10 @@ void gpu_ray_tracing(window_t* window, vec_t center, vec_t light, double radius,
 
     nblocks = n_rays;
     th_per_bl = 128;
-    size_t surface_size = window->size * window->size, sizeof(double);
+    size_t surface_size = window->size * window->size * sizeof(double);
 
     // Allocate memory for surface on gpu
-    cudaMalloc(&d_surface, surface_size);
+    cudaMalloc((void**)&d_surface, surface_size);
     cudaMemset(&d_surface, 0, surface_size);
     // Launch ray tracing
     trace_ray<<<nblocks, th_per_bl>>>(window, d_surface, center, light, radius);
