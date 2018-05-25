@@ -2,16 +2,22 @@
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
-#include<cuda.h>
-#include<cuda_runtime.h>
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <curand_kernel.h>
+#include <curand.h>
 
 #define CENTER (vec_t) {0, 12, 0}
 #define LIGHT (vec_t) {4, 4, -1}
 #define RADIUS 6
 #define WINDOW_Y 10
 #define WINDOW_MAX 10
+#define N 100
+#define TH 128
 
 typedef struct { double x,y,z; } vec_t;
+
+__device__ curandState_t* states[nstates];
 
 __device__ vec_t add(vec_t v, vec_t w){
     vec_t res;
@@ -39,16 +45,21 @@ __device__ vec_t direction(vec_t end, vec_t start){
     return scale(1/norm, dir);
 }
 
-__device__ vec_t sample_direction(){
-    double phi, cos_th, sin_th;
+__device__ vec_t sample_direction(curandState_t states){
+    double phi, cos_th, sin_th, r1, r2;
     vec_t v;
-    phi    = (double) rand() / (double) RAND_MAX * 2 * M_PI;
-    cos_th = (double) rand() / (double) RAND_MAX * 2 - 1;
+
+    r1 = curand_uniform_double(&states[blockIdx.x]);
+    r2 = curand_uniform_double(&states[blockIdx.x]);
+
+    phi    = r1 / (double) RAND_MAX * 2 * M_PI;
+    cos_th = r2 / (double) RAND_MAX * 2 - 1;
     sin_th = sqrt(1 - cos_th * cos_th);
 
     v.x = sin_th * cos(phi);
     v.y = sin_th * sin(phi);
     v.z = cos_th;
+
     return v;
 }
 
@@ -71,11 +82,11 @@ void destroy_window(window_t *w){
     free(w->surface);
 }
 
-int on_surface(window_t *w, vec_t co_ord) {
+__device__ int on_surface(window_t *w, vec_t co_ord) {
     return (abs(co_ord.x) < w->max) && (abs(co_ord.z) < w->max);
 }
 
-void save_surface(window_t *w,  char *file_name){
+void save_surface(window_t *w, const char *file_name){
     FILE *f = fopen(file_name,"w");
     fwrite(w->surface, sizeof(double), w->size * w->size, f);
     fclose(f);
@@ -85,12 +96,19 @@ __device__ void add_brightness(window_t *w, vec_t co_ord, double b){
     int x,y;
     x = (co_ord.x + w->max) / 2 / w->max * w->size;
     y = (co_ord.z + w->max) / 2 / w->max * w->size;
-    w->surface[x * w->size + y] += b;
+
+    atomicAdd(w->surface + x * w->size + y, b);
+}
+
+
+__global__ void init(unsigned int seed, curandState_t* states) {
+      curand_init(seed, blockIdx.x, 0, states + blockIdx.x);
 }
 
 // Ray tracing simulation of a sphere at coordinates `center` and radius `radius`.
 // Assumes observer is at origin facing in y direction dowards `window`
-__global__ void trace_ray(window_t window, double* surface, vec_t center, vec_t light, double radius){
+__global__ void kernel(window_t window, double* surface, vec_t center,
+                      vec_t light, double radius, curandState_t *states){
 
     vec_t ray, ray_window, ray_sphere, sph_dir, light_dir;
     double radius_sq, center_sq,brightness, t, x = -1;
@@ -101,13 +119,11 @@ __global__ void trace_ray(window_t window, double* surface, vec_t center, vec_t 
     center_sq = dot(center, center);
 
     do{
-        ray = sample_direction();                   // Ray originates from the origin
-        ray_window = scale(window.y / ray.y, ray); // Ray's intersection with window
-
+        ray = sample_direction(states);
+        ray_window = scale(window.y / ray.y, ray);
         if(!on_surface(&window, ray_window)) continue;
-
-        t = dot(ray, center);                       // t and x are algebra steps needed
-        x = t * t + radius_sq - center_sq;          // to solve for ray-sphere intersection
+        t = dot(ray, center);
+        x = t * t + radius_sq - center_sq;
 
     } while(x < 0);
 
@@ -122,20 +138,29 @@ __global__ void trace_ray(window_t window, double* surface, vec_t center, vec_t 
     add_brightness(&window, ray_window, brightness);
 }
 
+
 void gpu_ray_tracing(window_t* window, vec_t center, vec_t light, double radius, int n_rays){
 
     int nblocks, th_per_bl;
+    curandState_t* states;
+    size_t surface_size;
     double *d_surface;
 
     nblocks = n_rays;
     th_per_bl = 128;
-    size_t surface_size = window->size * window->size * sizeof(double);
+
+    // Initialize random number seeds
+    cudaMalloc((void**) &states, N * sizeof(curandState_t));
+    init<<<N, 1>>>(time(0), states);
 
     // Allocate memory for surface on gpu
+    surface_size = window->size * window->size * sizeof(double);
     cudaMalloc((void**)&d_surface, surface_size);
     cudaMemset(&d_surface, 0, surface_size);
+
     // Launch ray tracing
-    trace_ray<<<nblocks, th_per_bl>>>(window, d_surface, center, light, radius);
+    kernel<<<N, TH>>>(*window, d_surface, center, light, radius, states);
+
     // Collect surface
     window->surface = (double*) malloc(surface_size);
     cudaMemcpy(&window->surface, d_surface, surface_size, cudaMemcpyDeviceToHost);
@@ -158,7 +183,7 @@ int main(int argc, char const *argv[]) {
 
     init_window(&w, pixels_per_side, WINDOW_Y, WINDOW_MAX);
 
-    gpu_ray_tracing(&w, CENTER, LIGHT, RADIUS, n_rays);
+    kernel(&w, CENTER, LIGHT, RADIUS, n_rays);
 
     save_surface(&w, (const char *)"result.bin");
     destroy_window(&w);

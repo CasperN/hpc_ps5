@@ -1,5 +1,3 @@
-# CC = gcc -std=c99 -cc=/opt/local/bin/gcc-mp-7 -O3 -lm -Wall
-CC = gcc -O3 -lm -Wall -std=c99
 
 info :
 	@ echo "Usage:"
@@ -18,5 +16,8 @@ Readme.pdf : readme.md
 clean :
 	rm rt result.bin
 
-rt : main.c
-	$(CC) main.c -o rt
+rt : ray_trace.c
+	gcc -O3 -lm -Wall -std=c99 ray_trace.c -o rt
+
+grt : gray_trace.cu
+	nvcc -O3 -lm -Wall -std=c99 gray_trace.cu -o grt
