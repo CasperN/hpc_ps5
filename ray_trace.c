@@ -2,12 +2,17 @@
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
+#include <sys/time.h>
 
 #define CENTER (vec_t) {0, 12, 0}
 #define LIGHT (vec_t) {4, 4, -1}
 #define RADIUS 6
 #define WINDOW_Y 10
 #define WINDOW_MAX 10
+#ifndef M_PI
+    #define M_PI 3.14159265358979323846
+#endif
+
 
 typedef struct { float x,y,z; } vec_t;
 
@@ -99,10 +104,9 @@ void serial_ray_tracing(window_t* window, vec_t center, vec_t light, float radiu
         do{
             ray = sample_direction();                     // Ray originates from the origin
             ray_window = scale(window->y / ray.y, ray); // Ray's intersection with window
-            if(!on_surface(window, ray_window)) continue;
             t = dot(ray, center);                   // t and x are algebra steps needed
             x = t * t + radius_sq - center_sq;      // to solve for ray-sphere intersection
-        } while(x < 0);
+        } while(!on_surface(window, ray_window) || x < 0);
 
         ray_sphere = scale(t - sqrt(x), ray);
 
@@ -120,6 +124,8 @@ void serial_ray_tracing(window_t* window, vec_t center, vec_t light, float radiu
 int main(int argc, char const *argv[]) {
 
     int n_rays, pixels_per_side;
+    struct timeval start, end;
+    long elapsed;
     window_t w;
 
     if (argc != 3){
@@ -131,7 +137,12 @@ int main(int argc, char const *argv[]) {
 
     init_window(&w, pixels_per_side, WINDOW_Y, WINDOW_MAX);
 
+    gettimeofday(&start, 0);
     serial_ray_tracing(&w, CENTER, LIGHT, RADIUS, n_rays);
+    gettimeofday(&end, 0);
+
+    elapsed = (end.tv_sec - start.tv_sec)*1e6 + end.tv_usec - start.tv_usec;
+    printf("Done in %ld usec\n", elapsed);
 
     save_surface(&w, "result.bin");
     destroy_window(&w);

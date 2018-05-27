@@ -13,7 +13,7 @@
 #define RADIUS 6
 #define WINDOW_Y 10
 #define WINDOW_MAX 10
-#define BLOCKS_PER_DIM 22
+#define BLOCKS_PER_DIM 8
 #define THREADS_PER_BLOCK_DIM 8
 
 typedef struct { float x,y,z; } vec_t;
@@ -127,7 +127,7 @@ __global__ void kernel(window_t window, float* surface, vec_t center,
 
     float radius_sq, center_sq;
     int idx = getGlobalIdx();
-    curand_init(seed + idx, idx, 0, &states[idx]);
+    curand_init(seed, idx, 0, &states[idx]);
 
     window.surface = surface;
     radius_sq = radius * radius;
@@ -139,11 +139,10 @@ __global__ void kernel(window_t window, float* surface, vec_t center,
         do{
             ray = sample_direction(states);
             ray_window = scale(window.y / ray.y, ray);
-            if(!on_surface(&window, ray_window)) continue;
             t = dot(ray, center);
             x = t * t + radius_sq - center_sq;
 
-        } while(x < 0);
+        } while(!on_surface(&window, ray_window) || x < 0);
 
         ray_sphere = scale(t - sqrt(x), ray);
 
