@@ -16,7 +16,7 @@ Readme.pdf : readme.md
 	pandoc readme.md -o Readme.pdf
 
 clean :
-	rm rt result.bin
+	rm rt result.bin grt
 
 rt : ray_trace.c
 	gcc -O3 -lm -Wall -std=c99 ray_trace.c -o rt

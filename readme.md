@@ -5,10 +5,12 @@ output: pdf-latex
 # High Performance Computing Problem Set 5
 
 ## Usage
-See makefile
+* To compile cpu version: `make rt`
+* To compile gpu version: `make grt`
+* To run `./grt [nrays] [n_pixels per side]`
 
 
-### Block configurations
+## Block configurations
 
 Since I used a 3 dimension configuration, there are actually $t^3$ threads per
 block and $b^3$ blocks in the grid. In the table "threads" and "blocks"
@@ -40,7 +42,7 @@ I've written my program such that each thread has its own random seed but reuses
 it in its computation of $\frac{N}{b^3t^3}$ rays where $N$ is the total number
 of rays.
 
-### Performance Comparison
+## Performance Comparison
 The gpu here is configured to use 8 blocks and 8 threads for each of 3
 dimensions (ie 262,144 way parallelism). Observe the GPU seemingly scales better
 for small numbers of rays, this is because of the high initialization time
@@ -57,7 +59,7 @@ $10^{8 }$      0.718318    71.292471
 $10^{7 }$      0.495271     7.282018
 $10^{6 }$      0.467835     0.733851
 
+\pagebreak
+## GPU Image Output
 
-### GPU Image Output
-
-![gpu_fig.png]($10{^10}$ rays, 2500^2 pixels)
+![GPU Output: $10^{10}$ rays, $2500^2$ pixels](gpu_fig.png)
