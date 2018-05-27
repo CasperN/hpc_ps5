@@ -3,7 +3,9 @@ info :
 	@ echo "Usage:"
 	@ echo "To see results: 'make go'"
 	@ echo "To make raytracer: 'make rt'"
-	@ echo "To run ray tracer: './rt 1000 10000'"
+	@ echo "To run ray tracer: './rt 5000000 1000'"
+	@ echo ""
+	@ echo "For GPU version: 'make grt'"
 
 
 go: rt
